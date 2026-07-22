@@ -34,7 +34,7 @@ export default function FileBrowser({ section }) {
     const crumbs = []
     for (const slug of segments) {
       const { data } = await supabase.from('folders').select('*').eq('section', section)
-        .eq('parent_id', parentId).ilike('name', slug.replace(/-/g, ' ')).maybeSingle()
+        .eq('parent_id', parentId).eq('slug', slug).maybeSingle()
       if (!data) break
       crumbs.push(data)
       parentId = data.id
@@ -66,7 +66,7 @@ export default function FileBrowser({ section }) {
   }, [currentFolderId, section, loading])
 
   function goToFolder(folder) {
-    const newPath = [...breadcrumb, folder].map(f => f.name.toLowerCase().replace(/\s+/g, '-')).join('/')
+    const newPath = [...breadcrumb, folder].map(f => f.slug).join('/')
     navigate(`/${section}/${newPath}`)
   }
 
@@ -75,14 +75,14 @@ export default function FileBrowser({ section }) {
       navigate(`/${section}`)
       return
     }
-    const newPath = breadcrumb.slice(0, index + 1).map(f => f.name.toLowerCase().replace(/\s+/g, '-')).join('/')
+       const newPath = breadcrumb.slice(0, index + 1).map(f => f.slug).join('/')
     navigate(`/${section}/${newPath}`)
   }
 
   async function handleCreateFolder() {
     if (!newFolderName.trim()) return
-    await supabase.from('folders').insert({ section, name: newFolderName.trim(), parent_id: currentFolderId })
-    setNewFolderName('')
+    const slug = newFolderName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    await supabase.from('folders').insert({ section, name: newFolderName.trim(), slug, parent_id: currentFolderId })
     setShowNewFolder(false)
     loadContents()
   }
