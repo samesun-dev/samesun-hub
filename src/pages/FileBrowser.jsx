@@ -33,8 +33,10 @@ export default function FileBrowser({ section }) {
     let parentId = null
     const crumbs = []
     for (const slug of segments) {
-      const { data } = await supabase.from('folders').select('*').eq('section', section)
-        .eq('parent_id', parentId).eq('slug', slug).maybeSingle()
+      const query = supabase.from('folders').select('*').eq('section', section).eq('slug', slug)
+      const { data } = parentId
+        ? await query.eq('parent_id', parentId).maybeSingle()
+        : await query.is('parent_id', null).maybeSingle()
       if (!data) break
       crumbs.push(data)
       parentId = data.id
@@ -87,19 +89,21 @@ export default function FileBrowser({ section }) {
     loadContents()
   }
 
-  async function handleUpload(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
+async function handleUpload(e) {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
     setUploading(true)
-    const path = `${section}/${crypto.randomUUID()}-${file.name}`
-    const { error: uploadError } = await supabase.storage.from('hub-files').upload(path, file)
-    if (!uploadError) {
-      await supabase.from('documents').insert({
-        section, folder_id: currentFolderId, name: file.name,
-        storage_path: path, size_bytes: file.size,
-      })
-      loadContents()
+    for (const file of files) {
+      const path = `${section}/${crypto.randomUUID()}-${file.name}`
+      const { error: uploadError } = await supabase.storage.from('hub-files').upload(path, file)
+      if (!uploadError) {
+        await supabase.from('documents').insert({
+          section, folder_id: currentFolderId, name: file.name,
+          storage_path: path, size_bytes: file.size,
+        })
+      }
     }
+    loadContents()
     setUploading(false)
     e.target.value = ''
   }
@@ -154,7 +158,7 @@ export default function FileBrowser({ section }) {
         <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1e293b] text-white text-sm font-medium hover:bg-[#334155] transition-colors cursor-pointer">
           <Upload size={14} />
           {uploading ? 'Uploading…' : 'Upload'}
-          <input type="file" onChange={handleUpload} className="hidden" disabled={uploading} />
+          <input type="file" multiple onChange={handleUpload} className="hidden" disabled={uploading} />
         </label>
       </div>
 

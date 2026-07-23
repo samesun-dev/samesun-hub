@@ -3,8 +3,7 @@ import { ArrowUpRight, Zap, Wrench, FileSpreadsheet, Folder as FolderIcon } from
 
 const HERO_TITLE = 'Samesun Workspace'
 const HERO_SUBTITLE = 'The home base for the team.'
-const SUMMARY = 'This is where every internal tool, automation, template, and shared file lives - one place instead of scattered links and forgotten folders. Use the sections below to jump straight to what you need, or browse Automations and Tools for live apps the team has built.'
-const HERO_IMAGE_URL = null
+const SUMMARY = 'Quick links to automations, tools, Excel models, and files, along with Notion projects, useful websites and tools, and editing instructions.'
 
 const QUICK_SECTIONS = [
   { key: 'automations', label: 'Automations', desc: 'Scripts and workflows that run on their own.', icon: Zap, path: '/automations' },
@@ -14,10 +13,10 @@ const QUICK_SECTIONS = [
 ]
 
 const NOTION_LINKS = [
-  { title: 'Corporate Project Manager', url: 'https://notion.so' },
-  { title: 'Acquisitions Pipeline', url: 'https://notion.so' },
-  { title: 'BD Research Archive', url: 'https://notion.so' },
-  { title: 'Team Wiki', url: 'https://notion.so' },
+  { title: 'Project Manager', url: 'https://app.notion.com/p/Project-Manager-37351b12974e80b2a2a6c91e6d029b1c' },
+  { title: 'Groups Outreach Hub', url: 'https://app.notion.com/p/Groups-Hub-36c51b12974e80658917e6005b066e69' },
+  { title: 'Corporate Contracts', url: 'https://app.notion.com/p/Corporate-Contracts-9c151b12974e83b886638129f558f9dd' },
+  { title: 'Coming soon', url: '#' },
 ]
 
 const QUICK_LINKS = [
@@ -40,23 +39,14 @@ export default function Overview() {
   return (
     <div>
       <div
-        className="w-full px-10 py-14 flex flex-col md:flex-row items-center gap-8"
+        className="w-full px-10 py-14 flex flex-col items-center text-center"
         style={{ background: 'linear-gradient(135deg, #1e293b 0%, #334155 65%, #f5a623 150%)' }}
       >
-        <div className="flex-1">
-          <p className="text-xs font-mono uppercase tracking-wide text-white/60 mb-2">Samesun Workspace</p>
-          <h1 style={{ fontFamily: 'var(--font-display)' }} className="text-5xl font-medium text-white mb-3">
-            {HERO_TITLE}
-          </h1>
-          <p className="text-white/70 text-lg">{HERO_SUBTITLE}</p>
-        </div>
-        <div className="w-full md:w-64 h-40 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0 overflow-hidden">
-          {HERO_IMAGE_URL ? (
-            <img src={HERO_IMAGE_URL} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <p className="text-xs text-white/50 px-4 text-center">Add a photo - see edit instructions below</p>
-          )}
-        </div>
+        <p className="text-xs font-mono uppercase tracking-wide text-white/60 mb-2">Samesun Workspace</p>
+        <h1 style={{ fontFamily: 'var(--font-display)' }} className="text-5xl font-medium text-white mb-3">
+          {HERO_TITLE}
+        </h1>
+        <p className="text-white/70 text-lg">{HERO_SUBTITLE}</p>
       </div>
 
       <div className="max-w-4xl mx-auto px-10 py-12">
