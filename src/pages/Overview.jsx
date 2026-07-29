@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowUpRight, Zap, Wrench, FileSpreadsheet, Folder as FolderIcon } from 'lucide-react'
 
 const HERO_TITLE = 'Samesun Workspace'
-const HERO_SUBTITLE = 'The home base for the team.'
+const HERO_SUBTITLE = 'The Home Base For The Team. '
 const SUMMARY = 'Quick links to automations, tools, Excel models, and files, along with Notion projects, useful websites and tools, and editing instructions.'
 
 const QUICK_SECTIONS = [
