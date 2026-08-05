@@ -2,24 +2,26 @@
 //
 // Vercel Serverless Function (Vite project — not Next.js).
 // Place at: samesun-hub/api/webhooks/mews.ts
-// Vercel auto-exposes it at: https://<your-domain>/api/webhooks/mews
 //
-// Receives POSTs from Mews "Webhook export target" configs.
+// Receives POSTs from Mews "Webhook export target" configs (Format: JSON).
+// Auto-detects property, month, and report type from the payload itself —
+// no query params needed beyond ?token=SECRET, so the SAME url works for
+// every property and every report type:
 //
-// AUTO-DETECTION: property and month/year are read directly out of the
-// Mews payload's "Parameters" section — no need to encode them in the URL.
-// Report type is auto-detected from the report title text, with an
-// optional ?report= query param as a manual override/fallback.
-//
-// Minimal URL needed per export target:
 //   https://<your-domain>/api/webhooks/mews?token=SECRET
-// (You can still add &report=order-items if you want to force it rather
-// than rely on title-text detection — see REPORT_KEYWORDS below.)
 //
-// Folder structure produced on the Files page: Report type / Month / Property.xlsx
+// IMPORTANT: this writes into the SAME tables/bucket the existing Files
+// page (FileBrowser.jsx) already reads from — `folders`, `documents`,
+// and the `hub-files` storage bucket — with section = "files". No new
+// Supabase schema or bucket needed; nothing from the earlier
+// mews-reports/files-table approach is used anymore.
+//
+// Resulting structure on the Files page: Report type (folder) >
+// Month (subfolder) > Property.xlsx (document)
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
 import * as XLSX from "xlsx";
 
 const supabase = createClient(
@@ -27,9 +29,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY! // secret key — server-only, bypasses RLS
 );
 
+const SECTION = "files"; // matches FileBrowser's `section` prop for the Files page
+
 // Keyword patterns matched against the report title (e.g. "Order items
-// report consumed 2026-07-01...") to determine the report type folder name.
-// Add more patterns here as you wire up additional report types.
+// report consumed 2026-07-01...") to determine the report-type folder name.
 const REPORT_KEYWORDS: [RegExp, string][] = [
   [/order items?/i, "Order Items"],
   [/manager/i, "Manager Report"],
@@ -37,22 +40,46 @@ const REPORT_KEYWORDS: [RegExp, string][] = [
 
 interface MewsDocument {
   Name: string; // e.g. "Parameters", "Items", "Outlets", "Tax summary"
-  Data: unknown[][]; // array of rows, each row is an array of cell values
+  Data: unknown[][];
+}
+
+function slugify(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+// Finds an existing folder by (section, slug, parent) or creates it —
+// same slug algorithm FileBrowser.jsx already uses, so breadcrumb
+// navigation matches correctly.
+async function getOrCreateFolder({
+  name,
+  parentId,
+}: {
+  name: string;
+  parentId: string | null;
+}) {
+  const slug = slugify(name);
+  const query = supabase.from("folders").select("*").eq("section", SECTION).eq("slug", slug);
+  const { data: existing } = parentId
+    ? await query.eq("parent_id", parentId).maybeSingle()
+    : await query.is("parent_id", null).maybeSingle();
+
+  if (existing) return existing;
+
+  const { data: created, error } = await supabase
+    .from("folders")
+    .insert({ section: SECTION, name, slug, parent_id: parentId })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return created;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // TEMPORARY DIAGNOSTIC — confirms whether Vercel is invoking this handler
-  // at all, and shows the real request headers (not visible in the Vercel
-  // dashboard's log detail panel). Remove once the 400 issue is resolved.
-  console.log("HANDLER INVOKED — method:", req.method);
-  console.log("HANDLER INVOKED — headers:", JSON.stringify(req.headers));
-  console.log(
-    "HANDLER INVOKED — body type:",
-    typeof req.body,
-    "isArray:",
-    Array.isArray(req.body)
-  );
-
   if (req.method !== "POST") {
     res.status(405).json({ error: "method not allowed" });
     return;
@@ -67,9 +94,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const manualReportOverride = req.query.report as string | undefined;
   const payload = req.body as { Documents?: MewsDocument[] } | undefined;
 
-  // IMPORTANT: Mews has flagged some accounts' exports as "failed" even after
-  // a 200 response (see Mews Community reports, June 2026). We always ACK 200
-  // once the payload is received, and log processing errors separately.
+  // Mews has flagged some accounts' exports as "failed" even after a 200
+  // response, so we always ACK 200 once received, and log processing
+  // errors separately rather than surfacing them to Mews as a failure.
   try {
     await processReport({ payload, manualReportOverride });
   } catch (err) {
@@ -100,9 +127,6 @@ async function processReport({
     throw new Error("Payload missing 'Parameters' document — can't auto-detect property/month");
   }
 
-  // Parameters.Data[0] is a single-cell title row, e.g.
-  // ["Order items report consumed 2026-07-01 12:00:00 a.m. - 2026-08-01 12:00:00 a.m."]
-  // Every row after that is a [key, value] pair, e.g. ["Enterprise","Samesun Toronto"]
   const title = String(paramsDoc.Data[0]?.[0] ?? "");
   const paramRows = paramsDoc.Data.slice(1) as [string, string][];
   const params: Record<string, string> = Object.fromEntries(
@@ -114,57 +138,65 @@ async function processReport({
     throw new Error("Parameters section missing 'Enterprise' — can't determine property");
   }
 
-  // --- Report type: auto-detect from title text, or use manual override ---
   let reportName = manualReportOverride;
   if (!reportName) {
     const match = REPORT_KEYWORDS.find(([pattern]) => pattern.test(title));
     reportName = match ? match[1] : "Uncategorized Report";
   }
 
-  // --- Month: use the period the report actually COVERS (Start date), not
-  // today's date — e.g. an export run in early August covering July data
-  // should file under "July 2026", matching how you'd expect it organized. ---
-  const startDateStr = params["Start"]; // e.g. "2026-07-01T00:00:00"
+  const startDateStr = params["Start"];
   const periodDate = startDateStr ? new Date(startDateStr) : new Date();
   const monthLabel = periodDate.toLocaleString("en-US", { month: "long", year: "numeric" });
-  const monthSort = `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, "0")}`;
 
   // --- Build a multi-sheet workbook — one sheet per Mews "Document" ---
   const workbook = XLSX.utils.book_new();
   for (const doc of documents) {
-    const sheetName = doc.Name.slice(0, 31); // Excel sheet name limit
+    const sheetName = doc.Name.slice(0, 31);
     const worksheet = XLSX.utils.aoa_to_sheet(doc.Data as unknown[][]);
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   }
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
-  const fileName = `${propertyName.replace(/\s+/g, "-")}.xlsx`;
-  const folderPath = `${reportName}/${monthLabel}`;
-  const storagePath = `mews-reports/${folderPath}/${fileName}`;
+  // --- Get/create the Report type folder, then the Month subfolder inside it ---
+  const reportFolder = await getOrCreateFolder({ name: reportName, parentId: null });
+  const monthFolder = await getOrCreateFolder({ name: monthLabel, parentId: reportFolder.id });
+
+  const fileName = `${propertyName}.xlsx`;
+
+  // --- Overwrite behavior: if this property/report/month already has a
+  // document (e.g. re-running the same month), remove the old one first,
+  // matching the "upsert" behavior we want for monthly re-runs. ---
+  const { data: existingDoc } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("section", SECTION)
+    .eq("folder_id", monthFolder.id)
+    .eq("name", fileName)
+    .maybeSingle();
+
+  if (existingDoc) {
+    await supabase.storage.from("hub-files").remove([existingDoc.storage_path]);
+    await supabase.from("documents").delete().eq("id", existingDoc.id);
+  }
+
+  const storagePath = `${SECTION}/${randomUUID()}-${fileName}`;
 
   const { error: uploadError } = await supabase.storage
-    .from("mews-reports")
+    .from("hub-files")
     .upload(storagePath, buffer, {
       contentType:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      upsert: true, // overwrite if this property's report for this month already ran
     });
 
   if (uploadError) throw uploadError;
 
-  const { error: dbError } = await supabase.from("files").upsert(
-    {
-      path: storagePath,
-      name: fileName,
-      report_type: reportName,
-      month_label: monthLabel,
-      month_sort: monthSort,
-      property: propertyName,
-      source: "mews_webhook",
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "path" }
-  );
+  const { error: dbError } = await supabase.from("documents").insert({
+    section: SECTION,
+    folder_id: monthFolder.id,
+    name: fileName,
+    storage_path: storagePath,
+    size_bytes: buffer.length,
+  });
 
   if (dbError) throw dbError;
 }
