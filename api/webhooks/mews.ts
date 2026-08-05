@@ -30,7 +30,7 @@ const PROPERTIES: Record<string, string> = {
   hollywood: "Samesun Hollywood",
   oceanbeach: "Samesun Ocean Beach",
   sanfrancisco: "Samesun San Francisco",
-  // ...add any new properties
+  // ...add any additional properties
 };
 
 const REPORTS: Record<string, string> = {
@@ -63,6 +63,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // req.body is already parsed JSON by Vercel when Content-Type is application/json
   const payload = req.body;
+
+  // TEMPORARY — remove once we've confirmed the real Mews payload shape.
+  // Logs the top-level keys and a truncated preview so we can see the
+  // actual structure in Vercel's function logs without dumping the
+  // entire (possibly large) payload.
+  console.log(
+    "MEWS PAYLOAD DEBUG — top-level keys:",
+    payload && typeof payload === "object" ? Object.keys(payload) : typeof payload
+  );
+  console.log(
+    "MEWS PAYLOAD DEBUG — preview:",
+    JSON.stringify(payload).slice(0, 2000)
+  );
 
   // IMPORTANT: Mews has flagged some accounts' exports as "failed" even after
   // a 200 response (see Mews Community reports from June 2026). We therefore
@@ -138,4 +151,5 @@ async function processReport({
   );
 
   if (dbError) throw dbError;
+
 }
