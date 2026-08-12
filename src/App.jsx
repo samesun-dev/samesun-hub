@@ -8,6 +8,7 @@ import Overview from './pages/Overview'
 import LinkSectionPage from './pages/LinkSectionPage'
 import LinkDetail from './pages/LinkDetail'
 import FileBrowser from './pages/FileBrowser'
+import ByMonth from './pages/ByMonth'
 
 function Shell({ session }) {
   const [links, setLinks] = useState([])
@@ -32,6 +33,16 @@ function Shell({ session }) {
     const path = location.pathname
     if (path === '/') return ['Samesun', 'Overview']
     const [, section, ...rest] = path.split('/')
+    if (section === 'files-by-month') {
+      const [month, reportTypeSlug] = rest
+      const crumbs = ['Samesun', 'Files', 'By Month']
+      if (month) {
+        const [year, m] = month.split('-').map(Number)
+        crumbs.push(new Date(year, m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' }))
+      }
+      if (reportTypeSlug) crumbs.push(reportTypeSlug.replace(/-/g, ' '))
+      return crumbs
+    }
     const sectionLabels = { automations: 'Automations', tools: 'Tools', models: 'Models', files: 'Files' }
     const label = sectionLabels[section] ?? section
     if (rest.length === 0) return ['Samesun', label]
@@ -59,6 +70,7 @@ function Shell({ session }) {
               <Route path="/tools/:slug" element={<LinkDetail links={links} section="tools" onRefresh={fetchLinks} />} />
               <Route path="/models/*" element={<FileBrowser section="models" />} />
               <Route path="/files/*" element={<FileBrowser section="files" />} />
+              <Route path="/files-by-month/*" element={<ByMonth />} />
             </Routes>
           )}
         </main>

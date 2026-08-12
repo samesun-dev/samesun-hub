@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Folder, FileText, Plus, Upload, X, Download, Trash2, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import FilesTabs from '../components/FilesTabs'
 
 const SECTION_LABEL = { models: 'Models', files: 'Files' }
 const SECTION_DESC = {
@@ -133,6 +134,8 @@ async function handleUpload(e) {
         {SECTION_LABEL[section]}
       </h1>
       <p className="text-[#64748b] leading-relaxed mb-6">{SECTION_DESC[section]}</p>
+
+      {section === 'files' && <FilesTabs />}
 
       <div className="flex items-center gap-1.5 text-sm mb-6 text-[#94a3b8]">
         <button onClick={() => goToBreadcrumb(-1)} className="hover:text-[#1d4ed8] transition-colors">

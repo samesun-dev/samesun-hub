@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fastify/busboy": "^2.1.1",
     "@supabase/supabase-js": "^2.110.7",
     "lucide-react": "^1.25.0",
     "react": "^19.2.7",
