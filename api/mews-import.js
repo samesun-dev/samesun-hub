@@ -113,6 +113,19 @@ function parseMultipartFile(req) {
   });
 }
 
+// Mews's webhook export target (Format: Excel) POSTs the raw .xlsx bytes
+// directly as the request body — Content-Type:
+// application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, no
+// multipart wrapping. Confirmed via a live schedule fire on 2026-08-12.
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function getPropertyCity(buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const sheet = workbook.Sheets["Parameters"];
@@ -151,24 +164,14 @@ export default async function handler(req, res) {
     return;
   }
 
-  // TEMP diagnostic logging — remove once we've confirmed what shape Mews's
-  // real webhook-triggered POST actually arrives in (raw file upload vs.
-  // JSON, like the older api/webhooks/mews.ts expects). Vercel auto-parses
-  // JSON bodies into req.body before we ever see the stream, so multipart
-  // parsing would silently fail on a JSON payload without this.
-  const contentType = req.headers["content-type"] || "";
-  console.log("mews-import invoked:", { report: reportKey, contentType });
-  if (contentType.includes("application/json")) {
-    console.log("mews-import JSON body:", JSON.stringify(req.body)?.slice(0, 5000));
-    res.status(400).json({
-      success: false,
-      error: "Received JSON body, not a file upload — logged for inspection, endpoint not yet updated to parse this shape.",
-    });
-    return;
-  }
-
   try {
-    const fileBuffer = await parseMultipartFile(req);
+    // Real Mews schedules POST the raw .xlsx bytes as the body (Format:
+    // Excel, no multipart wrapping). Multipart is also accepted so manual
+    // `curl -F "file=@..."` testing keeps working.
+    const contentType = req.headers["content-type"] || "";
+    const fileBuffer = contentType.includes("multipart/form-data")
+      ? await parseMultipartFile(req)
+      : await readRawBody(req);
     const city = getPropertyCity(fileBuffer);
     const { monthName, year, sortable: month } = getPreviousMonth();
 
