@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, FileText, Download, ChevronRight } from 'lucide-react'
+import { Calendar, FileText, Download, DownloadCloud, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import FilesTabs from '../components/FilesTabs'
 
@@ -105,6 +105,27 @@ export default function ByMonth() {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
+  // Triggers each file as a direct download (not a new tab) via a
+  // programmatic <a download> click, staggered slightly so browsers don't
+  // throttle/block a burst of near-simultaneous downloads.
+  async function handleDownloadAll() {
+    for (let i = 0; i < documents.length; i++) {
+      const doc = documents[i]
+      const { data } = await supabase.storage
+        .from('hub-files')
+        .createSignedUrl(doc.storage_path, 60, { download: doc.name })
+      if (data?.signedUrl) {
+        const link = document.createElement('a')
+        link.href = data.signedUrl
+        link.download = doc.name
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
+      if (i < documents.length - 1) await new Promise((r) => setTimeout(r, 200))
+    }
+  }
+
   function goToMonth(m) {
     navigate(`/files-by-month/${m}`)
   }
@@ -189,6 +210,14 @@ export default function ByMonth() {
         </div>
       ) : (
         <div className="flex flex-col">
+          {documents.length > 0 && (
+            <button
+              onClick={handleDownloadAll}
+              className="flex items-center gap-1.5 self-start mb-4 px-3 py-1.5 rounded-lg bg-[#1e293b] text-white text-sm font-medium hover:bg-[#334155] transition-colors"
+            >
+              <DownloadCloud size={14} /> Download all ({documents.length})
+            </button>
+          )}
           {documents.map((doc) => (
             <div key={doc.id} className="group flex items-center justify-between gap-3 py-3 border-b border-[#f1f5f9]">
               <div className="flex items-center gap-3 flex-1 min-w-0">
