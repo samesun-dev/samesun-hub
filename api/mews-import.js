@@ -158,13 +158,11 @@ export default async function handler(req, res) {
 
     const filename = `${monthName} ${year} ${city} ${reportType}.xlsx`;
 
-    // Folder structure: Mews Imports > Months > {Month Year} > {Report Type} > files.
-    // New month/report-type folders are created on demand as imports land —
-    // e.g. the first Sep 1 import creates an "August 2026" folder.
+    // All imports land in one flat folder — the real Month > Report Type
+    // drill-down lives in the By Month tab (ByMonth.jsx), driven by the
+    // city/month/report_type tag columns below. Nesting folders to match
+    // would just duplicate that same navigation a second way.
     const importsFolder = await getOrCreateFolder({ name: IMPORTS_FOLDER_NAME, parentId: null });
-    const monthsFolder = await getOrCreateFolder({ name: "Months", parentId: importsFolder.id });
-    const monthFolder = await getOrCreateFolder({ name: `${monthName} ${year}`, parentId: monthsFolder.id });
-    const reportFolder = await getOrCreateFolder({ name: reportType, parentId: monthFolder.id });
 
     // Overwrite behavior: same city + month + report_type replaces the
     // previous file rather than creating a duplicate.
@@ -196,7 +194,7 @@ export default async function handler(req, res) {
       .from("documents")
       .insert({
         section: SECTION,
-        folder_id: reportFolder.id,
+        folder_id: importsFolder.id,
         name: filename,
         storage_path: storagePath,
         size_bytes: fileBuffer.length,
