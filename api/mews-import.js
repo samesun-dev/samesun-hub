@@ -126,6 +126,12 @@ function readRawBody(req) {
   });
 }
 
+// One property doesn't follow the "Samesun {City}" convention — it's
+// branded separately in Mews as "The Guesthouse Vancouver Downtown".
+const SPECIAL_CASE_PROPERTIES = {
+  "The Guesthouse Vancouver Downtown": "Guesthouse Vancouver",
+};
+
 function getPropertyCity(buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const sheet = workbook.Sheets["Parameters"];
@@ -136,6 +142,9 @@ function getPropertyCity(buffer) {
   const propertyName = cell ? String(cell.v).trim() : "";
   if (!propertyName) {
     throw new Error("Cell B3 on 'Parameters' sheet is empty — can't determine property");
+  }
+  if (propertyName in SPECIAL_CASE_PROPERTIES) {
+    return SPECIAL_CASE_PROPERTIES[propertyName];
   }
   if (!propertyName.startsWith("Samesun ")) {
     throw new Error(`Unexpected property name format "${propertyName}" — expected "Samesun {City}"`);
