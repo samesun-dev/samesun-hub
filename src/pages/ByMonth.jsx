@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Calendar, FileText, Download, DownloadCloud, ChevronRight } from 'lucide-react'
+import JSZip from 'jszip'
 import { supabase } from '../lib/supabase'
 import FilesTabs from '../components/FilesTabs'
 
@@ -44,6 +45,7 @@ export default function ByMonth() {
   const [reportTypes, setReportTypes] = useState([])
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [zipping, setZipping] = useState(false)
 
   const segments = (pathParam ?? '').split('/').filter(Boolean)
   const month = segments[0] ?? null
@@ -105,24 +107,32 @@ export default function ByMonth() {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
-  // Triggers each file as a direct download (not a new tab) via a
-  // programmatic <a download> click, staggered slightly so browsers don't
-  // throttle/block a burst of near-simultaneous downloads.
+  // Bundled into a single .zip rather than triggering N separate downloads —
+  // Chrome (and others) silently block automatic downloads past a small
+  // count per user gesture, even after granting the "allow multiple
+  // downloads" permission, so a one-file-at-a-time approach isn't reliable.
   async function handleDownloadAll() {
-    for (let i = 0; i < documents.length; i++) {
-      const doc = documents[i]
-      const { data } = await supabase.storage
-        .from('hub-files')
-        .createSignedUrl(doc.storage_path, 60, { download: doc.name })
-      if (data?.signedUrl) {
-        const link = document.createElement('a')
-        link.href = data.signedUrl
-        link.download = doc.name
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+    setZipping(true)
+    try {
+      const zip = new JSZip()
+      for (const doc of documents) {
+        const { data } = await supabase.storage.from('hub-files').createSignedUrl(doc.storage_path, 60)
+        if (!data?.signedUrl) continue
+        const response = await fetch(data.signedUrl)
+        const blob = await response.blob()
+        zip.file(doc.name, blob)
       }
-      if (i < documents.length - 1) await new Promise((r) => setTimeout(r, 200))
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(zipBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${formatMonth(month)} ${currentReportTypeLabel ?? ''}.zip`.replace(/\s+/g, ' ').trim()
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } finally {
+      setZipping(false)
     }
   }
 
@@ -213,9 +223,10 @@ export default function ByMonth() {
           {documents.length > 0 && (
             <button
               onClick={handleDownloadAll}
-              className="flex items-center gap-1.5 self-start mb-4 px-3 py-1.5 rounded-lg bg-[#1e293b] text-white text-sm font-medium hover:bg-[#334155] transition-colors"
+              disabled={zipping}
+              className="flex items-center gap-1.5 self-start mb-4 px-3 py-1.5 rounded-lg bg-[#1e293b] text-white text-sm font-medium hover:bg-[#334155] transition-colors disabled:opacity-50"
             >
-              <DownloadCloud size={14} /> Download all ({documents.length})
+              <DownloadCloud size={14} /> {zipping ? 'Zipping…' : `Download all (${documents.length})`}
             </button>
           )}
           {documents.map((doc) => (
