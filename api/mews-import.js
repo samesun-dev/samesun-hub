@@ -151,6 +151,22 @@ export default async function handler(req, res) {
     return;
   }
 
+  // TEMP diagnostic logging — remove once we've confirmed what shape Mews's
+  // real webhook-triggered POST actually arrives in (raw file upload vs.
+  // JSON, like the older api/webhooks/mews.ts expects). Vercel auto-parses
+  // JSON bodies into req.body before we ever see the stream, so multipart
+  // parsing would silently fail on a JSON payload without this.
+  const contentType = req.headers["content-type"] || "";
+  console.log("mews-import invoked:", { report: reportKey, contentType });
+  if (contentType.includes("application/json")) {
+    console.log("mews-import JSON body:", JSON.stringify(req.body)?.slice(0, 5000));
+    res.status(400).json({
+      success: false,
+      error: "Received JSON body, not a file upload — logged for inspection, endpoint not yet updated to parse this shape.",
+    });
+    return;
+  }
+
   try {
     const fileBuffer = await parseMultipartFile(req);
     const city = getPropertyCity(fileBuffer);
