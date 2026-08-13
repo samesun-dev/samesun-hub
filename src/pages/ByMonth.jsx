@@ -111,15 +111,32 @@ export default function ByMonth() {
   // Chrome (and others) silently block automatic downloads past a small
   // count per user gesture, even after granting the "allow multiple
   // downloads" permission, so a one-file-at-a-time approach isn't reliable.
+  //
+  // Every fetch is verified (status + non-empty body) before being added to
+  // the zip. A failed fetch used to be silently zipped as-is — the error
+  // response (a small JSON body) would end up inside a file still named
+  // "*.xlsx", producing a zip that looks fine but is empty of real data
+  // once opened downstream. Now any failure aborts the whole batch with a
+  // clear error instead of shipping a corrupted zip.
   async function handleDownloadAll() {
     setZipping(true)
     try {
       const zip = new JSZip()
       for (const doc of documents) {
-        const { data } = await supabase.storage.from('hub-files').createSignedUrl(doc.storage_path, 60)
-        if (!data?.signedUrl) continue
+        const { data, error: signError } = await supabase.storage
+          .from('hub-files')
+          .createSignedUrl(doc.storage_path, 120)
+        if (signError || !data?.signedUrl) {
+          throw new Error(`Couldn't get a download link for "${doc.name}": ${signError?.message ?? 'no signed URL returned'}`)
+        }
         const response = await fetch(data.signedUrl)
+        if (!response.ok) {
+          throw new Error(`Download failed for "${doc.name}" (HTTP ${response.status}). Nothing was downloaded — try again.`)
+        }
         const blob = await response.blob()
+        if (blob.size === 0) {
+          throw new Error(`"${doc.name}" downloaded as an empty file. Nothing was downloaded — try again.`)
+        }
         zip.file(doc.name, blob)
       }
       const zipBlob = await zip.generateAsync({ type: 'blob' })
@@ -131,6 +148,8 @@ export default function ByMonth() {
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err))
     } finally {
       setZipping(false)
     }
