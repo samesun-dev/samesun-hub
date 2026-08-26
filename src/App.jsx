@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import Login from './components/Login'
+import ForgotPassword from './components/ForgotPassword'
+import SetPassword from './components/SetPassword'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import Overview from './pages/Overview'
@@ -93,6 +95,14 @@ function App() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  const path = window.location.pathname
+  if (path === '/reset-password') {
+    return <SetPassword onSuccess={() => { window.location.href = '/' }} />
+  }
+  if (path === '/forgot-password') {
+    return <ForgotPassword />
+  }
 
   if (checking) {
     return (

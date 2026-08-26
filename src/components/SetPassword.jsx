@@ -2,21 +2,33 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Sun } from 'lucide-react'
 
-export default function Login() {
-  const [email, setEmail] = useState('')
+export default function SetPassword({ onSuccess }) {
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function handleSignIn(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     setError('')
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError('Email or password not recognized.')
-      setLoading(false)
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
     }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    setLoading(true)
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+      return
+    }
+    onSuccess()
   }
 
   return (
@@ -27,32 +39,35 @@ export default function Login() {
             <Sun size={19} className="text-white" />
           </div>
           <h1 style={{ fontFamily: 'var(--font-display)' }} className="text-2xl font-medium text-[#1e293b]">
-            Samesun
+            Set your password
           </h1>
-          <p className="text-xs text-[#94a3b8] font-mono uppercase tracking-wide mt-1">Workspace</p>
+          <p className="text-xs text-[#94a3b8] font-mono uppercase tracking-wide mt-1">Welcome to Samesun</p>
         </div>
 
-        <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm text-[#64748b] mb-1.5">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@samesun.com"
-              className="w-full px-3 py-2.5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/25 focus:border-[#3b82f6] transition-all"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-[#64748b] mb-1.5">Password</label>
+            <label className="block text-sm text-[#64748b] mb-1.5">New password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
+              placeholder="At least 8 characters"
               className="w-full px-3 py-2.5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/25 focus:border-[#3b82f6] transition-all"
               required
+              minLength={8}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-[#64748b] mb-1.5">Confirm password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter password"
+              className="w-full px-3 py-2.5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/25 focus:border-[#3b82f6] transition-all"
+              required
+              minLength={8}
             />
           </div>
 
@@ -65,14 +80,8 @@ export default function Login() {
             disabled={loading}
             className="w-full bg-[#1e293b] hover:bg-[#334155] text-white font-semibold rounded-lg py-2.5 text-sm transition-colors disabled:opacity-60 mt-1"
           >
-            {loading ? 'Signing in…' : 'Sign in →'}
+            {loading ? 'Saving…' : 'Set password →'}
           </button>
-          <a
-            href="/forgot-password"
-            className="text-sm text-[#64748b] hover:text-[#1e293b] text-center transition-colors"
-          >
-            Forgot password?
-          </a>
         </form>
       </div>
     </div>
