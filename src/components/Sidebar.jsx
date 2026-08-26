@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Sun, ChevronRight, ChevronsLeft, ChevronsRight, Home, Circle, Folder } from 'lucide-react'
+import { Sun, ChevronRight, ChevronsLeft, ChevronsRight, Home, Circle, Folder, Users } from 'lucide-react'
 
 const STATUS_COLOR = {
   live: '#10b981',
@@ -108,6 +108,16 @@ export default function Sidebar({ links, collapsed, onToggleCollapse }) {
         >
           <Home size={15} />
         </NavLink>
+        <NavLink
+          to="/people"
+          className={({ isActive }) =>
+            `w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+              isActive ? 'bg-[#dbeafe] text-[#1d4ed8]' : 'text-[#94a3b8] hover:bg-[#e2e8f0]'
+            }`
+          }
+        >
+          <Users size={15} />
+        </NavLink>
         <button onClick={onToggleCollapse} className="mt-auto text-[#94a3b8] hover:text-[#475569]">
           <ChevronsRight size={16} />
         </button>
@@ -152,6 +162,18 @@ export default function Sidebar({ links, collapsed, onToggleCollapse }) {
         <LinkSectionNav label="Tools" sectionKey="tools" links={links} expanded={expanded.tools} onToggle={() => toggle('tools')} />
         <FolderSectionNav label="Models" sectionKey="models" expanded={expanded.models} onToggle={() => toggle('models')} />
         <FolderSectionNav label="Files" sectionKey="files" expanded={expanded.files} onToggle={() => toggle('files')} />
+
+        <NavLink
+          to="/people"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-2.5 py-1.5 mt-2 rounded-md text-sm font-medium transition-colors ${
+              isActive ? 'bg-[#dbeafe] text-[#1d4ed8]' : 'text-[#475569] hover:bg-[#f1f5f9]'
+            }`
+          }
+        >
+          <Users size={15} />
+          People
+        </NavLink>
       </nav>
     </aside>
   )
