@@ -23,6 +23,8 @@ export default function People() {
   const [showAdd, setShowAdd] = useState(false)
   const [confirmId, setConfirmId] = useState(null)
   const [error, setError] = useState('')
+  const [sendingId, setSendingId] = useState(null)
+  const [sentId, setSentId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -47,6 +49,30 @@ export default function People() {
     } catch (e) {
       setError(e.message)
     }
+  }
+
+  async function handleSendLink(p) {
+    setError('')
+    setSentId(null)
+    setSendingId(p.id)
+    try {
+      if (p.confirmed) {
+        const { error } = await supabase.auth.resetPasswordForEmail(p.email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+        if (error) throw error
+      } else {
+        await callPeopleApi('POST', {
+          name: p.name,
+          email: p.email,
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+      }
+      setSentId(p.id)
+    } catch (e) {
+      setError(e.message)
+    }
+    setSendingId(null)
   }
 
   return (
@@ -84,21 +110,43 @@ export default function People() {
                 <p className="text-sm font-medium text-[#1e293b] truncate">{p.name}</p>
                 <p className="text-sm text-[#94a3b8] truncate">{p.email}</p>
               </div>
-              {confirmId === p.id ? (
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-[#94a3b8]">Remove access?</span>
-                  <button onClick={() => handleRemove(p.id)} className="text-xs font-semibold text-red-600">Yes</button>
-                  <button onClick={() => setConfirmId(null)} className="text-xs text-[#94a3b8]">No</button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setConfirmId(p.id)}
-                  className="flex items-center gap-1 text-xs text-[#94a3b8] hover:text-red-600 transition-colors shrink-0"
+              <div className="flex items-center gap-2 shrink-0">
+                <span
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                  style={p.confirmed
+                    ? { background: '#d1fae5', color: '#065f46' }
+                    : { background: '#f3f4f6', color: '#6b7280' }}
                 >
-                  <Trash2 size={13} />
-                  Remove
-                </button>
-              )}
+                  {p.confirmed ? 'Active' : 'Pending'}
+                </span>
+
+                {sentId === p.id ? (
+                  <span className="text-xs font-medium text-emerald-600">Sent!</span>
+                ) : (
+                  <button
+                    onClick={() => handleSendLink(p)}
+                    disabled={sendingId === p.id}
+                    className="text-xs border border-[#e2e8f0] rounded-md px-2.5 py-1 text-[#64748b] hover:bg-[#f8fafc] transition-colors disabled:opacity-50"
+                  >
+                    {sendingId === p.id ? 'Sending…' : p.confirmed ? 'Send reset' : 'Send invite'}
+                  </button>
+                )}
+
+                {confirmId === p.id ? (
+                  <>
+                    <span className="text-xs text-[#94a3b8]">Remove?</span>
+                    <button onClick={() => handleRemove(p.id)} className="text-xs font-semibold text-red-600">Yes</button>
+                    <button onClick={() => setConfirmId(null)} className="text-xs text-[#94a3b8]">No</button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setConfirmId(p.id)}
+                    className="flex items-center gap-1 text-xs text-[#94a3b8] hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {people.length === 0 && (

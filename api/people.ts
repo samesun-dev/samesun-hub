@@ -48,6 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         email: u.email,
         name: (u.user_metadata as { name?: string })?.name || u.email,
         createdAt: u.created_at,
+        confirmed: !!u.confirmed_at,
       }))
       .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
     res.status(200).json({ people });
