@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import Overview from './pages/Overview'
 import People from './pages/People'
+import Vouchers from './pages/Vouchers'
 import LinkSectionPage from './pages/LinkSectionPage'
 import LinkDetail from './pages/LinkDetail'
 import FileBrowser from './pages/FileBrowser'
@@ -46,7 +47,7 @@ function Shell({ session }) {
       if (reportTypeSlug) crumbs.push(reportTypeSlug.replace(/-/g, ' '))
       return crumbs
     }
-    const sectionLabels = { automations: 'Automations', tools: 'Tools', models: 'Models', files: 'Files', people: 'People' }
+    const sectionLabels = { automations: 'Automations', tools: 'Tools', models: 'Models', files: 'Files', people: 'People', vouchers: 'Voucher usage' }
     const label = sectionLabels[section] ?? section
     if (rest.length === 0) return ['Samesun', label]
     if (section === 'automations' || section === 'tools') {
@@ -68,6 +69,7 @@ function Shell({ session }) {
             <Routes>
               <Route path="/" element={<Overview />} />
               <Route path="/people" element={<People />} />
+              <Route path="/vouchers" element={<Vouchers />} />
               <Route path="/automations" element={<LinkSectionPage section="automations" links={links} onRefresh={fetchLinks} />} />
               <Route path="/automations/:slug" element={<LinkDetail links={links} section="automations" onRefresh={fetchLinks} />} />
               <Route path="/tools" element={<LinkSectionPage section="tools" links={links} onRefresh={fetchLinks} />} />
