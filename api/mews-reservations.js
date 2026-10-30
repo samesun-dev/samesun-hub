@@ -77,6 +77,12 @@ export default async function handler(req, res) {
     res.status(405).json({ success: false, error: "Method not allowed" });
     return;
   }
+  // Distinguish "server misconfigured" from "wrong token" so a missing env
+  // var isn't mistaken for a typo. Reveals nothing but that config is absent.
+  if (!process.env.MEWS_RESERVATIONS_SECRET || !process.env.MEWS_DATABASE_URL) {
+    res.status(500).json({ success: false, error: "Server not configured: missing MEWS_RESERVATIONS_SECRET or MEWS_DATABASE_URL" });
+    return;
+  }
   if (!tokenOk(req.query.token)) {
     res.status(401).json({ success: false, error: "Unauthorized" });
     return;
