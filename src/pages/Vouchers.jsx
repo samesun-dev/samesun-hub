@@ -273,12 +273,8 @@ export default function Vouchers() {
           <Download size={14} /> Export to Excel
         </button>
       </div>
-      <p className="text-[#64748b] leading-relaxed mb-8">
-        How often each promo code was used across properties, from Mews reservation reports. Guest personal details are never stored.
-      </p>
-
       {/* filters */}
-      <div className="flex flex-col gap-4 mb-8 pb-6 border-b border-[#f1f5f9]">
+      <div className="flex flex-col gap-4 mt-8 mb-8 pb-6 border-b border-[#f1f5f9]">
         <div className="flex flex-wrap items-center gap-2">
           <span className="w-24 text-xs font-mono uppercase tracking-wide text-[#94a3b8]">Dates</span>
           {PRESETS.map(([k, label]) => (
